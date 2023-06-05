@@ -19,10 +19,10 @@ static void error(int err, const char * desc) {
 }
 
 GLfloat vertices[] = {
-	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, // top right (yellow)
-	1.0f, -1.0f, 0.0f, 1.0f, 1.0f, // bottom right (magenta)
-	-1.0f, 1.0f, 1.0f, 0.0f, 1.0f, // top left (cyan)
-	-1.0f, -1.0f, 1.0f, 1.0f, 1.0f, // bottom left (white)
+	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, // top right (yellow)
+	1.0f, -1.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f, // bottom right (magenta)
+	-1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, // top left (cyan)
+	-1.0f, -1.0f, 0.75f, 0.25f, 1.0f, 1.0f, 1.0f, // bottom left (white)
 };
 
 GLuint elements[] = {
@@ -80,12 +80,38 @@ int main(void) {
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
 
+// textures
+
+	GLuint tex;
+	glGenTextures(1, &tex);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	float border[] = { 1.0f, 1.0f, 0.0f, 1.0f };
+	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, border);
+
+	u8 image[] = {
+		1.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 1.0f,
+		1.0f, 1.0f, 1.0f,
+	};
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB, GL_FLOAT, image);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE0);
+
 // shaders
 
 	char * shader_vert_src = file_read_str("./vert.glsl");
 	char * shader_frag_src = file_read_str("./frag.glsl");
-	printf("%s\n", shader_vert_src);
-	printf("%s\n", shader_frag_src);
+	printf("vertex shader source code:\n%s\n[end of file]\n", shader_vert_src);
+	printf("fragment shader source code:\n%s\n[end of file]\n", shader_frag_src);
 
 	GLuint shader_vert = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(shader_vert, 1, (const GLchar * const *) &shader_vert_src, NULL);
@@ -104,14 +130,20 @@ int main(void) {
 	glUseProgram(shader_program);
 
 	GLint pos_attr = glGetAttribLocation(shader_program, "position");
+	glVertexAttribPointer(pos_attr, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), 0);
 	glEnableVertexAttribArray(pos_attr);
-	glVertexAttribPointer(pos_attr, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
 
 	GLint col_attr = glGetAttribLocation(shader_program, "color");
+	glVertexAttribPointer(col_attr, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(col_attr);
-	glVertexAttribPointer(col_attr, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
+
+	GLint uv_attr = glGetAttribLocation(shader_program, "uv");
+	glVertexAttribPointer(uv_attr, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void *) (5 * sizeof(float)));
+	glEnableVertexAttribArray(uv_attr);
 
 	while (!glfwWindowShouldClose(win)) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, tex);
 		glDrawElements(GL_TRIANGLES, sizeof(elements) / sizeof(GLuint), GL_UNSIGNED_INT, 0);
 		glfwSwapBuffers(win);
 		glfwPollEvents();
