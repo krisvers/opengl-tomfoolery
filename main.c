@@ -4,6 +4,9 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include <fileio.h>
+#include <utils.h>
+
 #define WIDTH 800
 #define HEIGHT 600
 #define TITLE "app"
@@ -15,37 +18,16 @@ static void error(int err, const char * desc) {
 	fprintf(stderr, "%i: %s\n", err, desc);
 }
 
-static void * file_load(char * filename) {
-	FILE * fp = fopen(filename, "r");
-	if (fp == NULL) {
-		fprintf(stderr, "file_load(): no such file %s\n", filename);
-		abort();
-	}
+GLfloat vertices[] = {
+	1.0f, 1.0f, 1.0f, 1.0f, 0.0f, // top right (yellow)
+	1.0f, -1.0f, 0.0f, 1.0f, 1.0f, // bottom right (magenta)
+	-1.0f, 1.0f, 1.0f, 0.0f, 1.0f, // top left (cyan)
+	-1.0f, -1.0f, 1.0f, 1.0f, 1.0f, // bottom left (white)
+};
 
-	fseek(fp, 0L, SEEK_END);
-	long long unsigned int size = ftell(fp);
-	fseek(fp, 0L, SEEK_SET);
-
-	char * file = malloc(size + 1);
-	if (file == NULL) {
-		fprintf(stderr, "file_load(): failed to allocate file %s buffer\n", filename);
-		abort();
-	}
-
-	if (fread(file, size, 1, fp) != 1) {
-		fprintf(stderr, "file_load(): error while reading file %s\n", filename);
-		abort();
-	}
-
-	file[size] = '\0';
-
-	return (void *) file;
-}
-
-float vertices[] = {
-	0.0f, 0.5f,
-	0.5f, -0.5f,
-	-0.5f, -0.5f,
+GLuint elements[] = {
+	0, 1, 2,
+	2, 3, 1
 };
 
 GLFWwindow * win = NULL;
@@ -91,10 +73,17 @@ int main(void) {
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 
+// elements buffer and elements
+
+	GLuint ebo;
+	glGenBuffers(1, &ebo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
+
 // shaders
 
-	char * shader_vert_src = file_load("./vert.glsl");
-	char * shader_frag_src = file_load("./frag.glsl");
+	char * shader_vert_src = file_read_str("./vert.glsl");
+	char * shader_frag_src = file_read_str("./frag.glsl");
 	printf("%s\n", shader_vert_src);
 	printf("%s\n", shader_frag_src);
 
@@ -114,12 +103,16 @@ int main(void) {
 	glLinkProgram(shader_program);
 	glUseProgram(shader_program);
 
-	GLint position_attrib = glGetAttribLocation(shader_program, "position");
-	glVertexAttribPointer(position_attrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	glEnableVertexAttribArray(position_attrib);
+	GLint pos_attr = glGetAttribLocation(shader_program, "position");
+	glEnableVertexAttribArray(pos_attr);
+	glVertexAttribPointer(pos_attr, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), 0);
+
+	GLint col_attr = glGetAttribLocation(shader_program, "color");
+	glEnableVertexAttribArray(col_attr);
+	glVertexAttribPointer(col_attr, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (void *) (2 * sizeof(GLfloat)));
 
 	while (!glfwWindowShouldClose(win)) {
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawElements(GL_TRIANGLES, sizeof(elements) / sizeof(GLuint), GL_UNSIGNED_INT, 0);
 		glfwSwapBuffers(win);
 		glfwPollEvents();
 
